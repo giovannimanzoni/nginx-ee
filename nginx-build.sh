@@ -970,9 +970,23 @@ _configure_libressl() {
 _configure_nginx() {
     local DEB_CFLAGS
     local DEB_LFLAGS
-# https://github.com/arut/nginx-rtmp-module/issues/1283
-    DEB_CFLAGS="$(dpkg-buildflags --get CPPFLAGS) -Wno-error=date-time -Wimplicit-fallthrough=0"
-    DEB_LFLAGS="-lrt $(dpkg-buildflags --get LDFLAGS)" # https://gist.github.com/leonklingele/a669803060fa92817f64
+
+        if [ "$OS_ARCH" = 'x86_64' ]; then
+            if [ "$DISTRO_ID" = "Ubuntu" ]; then
+                DEB_CFLAGS='-m64 -march=native -mtune=native -DTCP_FASTOPEN=23 -g -O3 -fstack-protector-strong -flto -ffat-lto-objects -fuse-ld=gold --param=ssp-buffer-size=4 -Wformat -Werror=format-security -Wimplicit-fallthrough=0 -fcode-hoisting -Wp,-D_FORTIFY_SOURCE=2 -gsplit-dwarf'
+                DEB_LFLAGS='-lrt -ljemalloc -Wl,-z,relro -Wl,-z,now -fPIC -flto -ffat-lto-objects'
+            fi
+            ZLIB_PATH='../zlib-cf'
+        else
+            ZLIB_PATH='../zlib'
+        fi
+
+	if [ "$DISTRO_ID" != "Ubuntu" ]; then
+		# https://github.com/arut/nginx-rtmp-module/issues/1283
+		# https://www.unixteacher.org/blog/speed-up-web-delivery-with-nginx-and-tfo/
+		DEB_CFLAGS="$(dpkg-buildflags --get CPPFLAGS) -Wno-error=date-time -Wimplicit-fallthrough=0 -O2 -fstack-protector-strong -DTCP_FASTOPEN=23"
+		DEB_LFLAGS="-lrt $(dpkg-buildflags --get LDFLAGS)" # https://gist.github.com/leonklingele/a669803060fa92817f64
+	fi
 
     if {
         echo -ne '       Configuring nginx                      [..]\r'
@@ -1032,15 +1046,6 @@ _configure_nginx() {
         --add-module=../nginx-module-vts \
         --add-module=../ipscrubtmp/ipscrub"
 
-        if [ "$OS_ARCH" = 'x86_64' ]; then
-            if [ "$DISTRO_ID" = "Ubuntu" ]; then
-                DEB_CFLAGS='-m64 -march=native -mtune=native -DTCP_FASTOPEN=23 -g -O3 -fstack-protector-strong -flto -ffat-lto-objects -fuse-ld=gold --param=ssp-buffer-size=4 -Wformat -Werror=format-security -Wimplicit-fallthrough=0 -fcode-hoisting -Wp,-D_FORTIFY_SOURCE=2 -gsplit-dwarf'
-                DEB_LFLAGS='-lrt -ljemalloc -Wl,-z,relro -Wl,-z,now -fPIC -flto -ffat-lto-objects'
-            fi
-            ZLIB_PATH='../zlib-cf'
-        else
-            ZLIB_PATH='../zlib'
-        fi
 	cd $DIR_SRC/nginx
         bash -c "./configure \
                     ${NGX_NAXSI} \
@@ -1184,7 +1189,8 @@ _final_tasks() {
 
 _create_deb() {
 if {
-	echo -ne '	Performing create .deb			[..]\r'
+	echo -ne '       Performing create .deb                 [..]\r'
+	sleep 1
         {
 	# creazione .deb
         UND='_'
@@ -1193,10 +1199,10 @@ if {
 	--stripso=yes --backup=yes -y  --install=no
 	} >>/tmp/nginx-ee.log 2>&1
     }; then
-        echo -ne "	Performing create .deb			[${CGREEN}OK${CEND}]\\r"
+        echo -ne "       Performing create .deb                 [${CGREEN}OK${CEND}]\\r"
         echo -ne '\n'
     else
-        echo -e "	Performing create .deb			[${CRED}FAIL${CEND}]"
+        echo -e  "       Performing create .deb                 [${CRED}FAIL${CEND}]"
         echo -e '\n      Please look at /tmp/nginx-ee.log\n'
         exit 1
     fi
@@ -1212,7 +1218,7 @@ _init
 _dependencies_repo
 _install_dependencies
 _nginx_prepare
-_nginx_from_scratch_setup # x testare make
+_nginx_from_scratch_setup
 
 if [ "$DISTRO_ID" = "Ubuntu" ]; then
     _gcc_ubuntu_setup
