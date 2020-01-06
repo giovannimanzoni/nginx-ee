@@ -20,7 +20,7 @@ _check_privileges() {
 	echo -ne '	Controllo privilegi			[..]\r'
 	sleep 1
 	if [ $(id -u) -ne 0 ]; then
-		echo -ne '	Controllo privilegi			[${CRED}FAIL${CEND}]\r'
+		echo -ne '	Controllo privilegi			[FAIL]\r'
 		echo "Non sei root" >> $LOG_FILE
         	echo -e "\n      Controlla $LOG_FILE"
 		exit
