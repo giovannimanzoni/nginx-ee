@@ -34,16 +34,6 @@ if [ ! -d /var/run/$NF-cache ]; then
 fi
 chown $NF:root /var/run/$NF-cache
 
-if [ ! -d /var/run/$NF-pid ]; then
-	mkdir /var/run/$NF-pid
-fi
-chown $NF:root /var/run/$NF-pid
-
-if [ ! -d /var/lock/$NF-lock ]; then
-	mkdir /var/lock/$NF-lock
-fi
-chown $NF:root /var/lock/$NF-lock
-
 chown -R $NF:root /var/log/$NF $JAIL$NF
 
 # start master process as $NF user & allow bind on port < 1024

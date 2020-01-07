@@ -5,7 +5,7 @@ JAIL="/srv/"
 NF="ngxdef"
 FILE="/lib/systemd/system/$NF.service"
 LOG_FILE="$HERE/install.log"
-PIDFILE="/var/run/$NF-pid/$NF.pid"
+PIDFILE="/tmp/$NF.pid"
 
 
 # Colors
@@ -81,7 +81,7 @@ _install() {
 }
 
 _setup() {
-	apt-get -y install logrotate libxslt1.1 libgoogle-perftools4 libcap2-bin util-linux
+	apt-get -y install logrotate libxslt1.1 libgoogle-perftools4 libcap2-bin
 
 	# create nginx user for this nginx pkguser with no home, no login, no password
 	if id "$NF" >/dev/null 2>&1; then
@@ -103,13 +103,6 @@ _setup() {
             mkdir -p /var/run/$NF-cache
         fi
 
-	if [ ! -d /var/run/$NF-pid ]; then
-		mkdir /var/run/$NF-pid
-	fi
-	if [ ! -d /var/lock/$NF-lock ]; then
-		mkdir /var/lock/$NF-lock
-	fi
-
         if [ ! -d /var/log/$NF ]; then
             mkdir -p /var/log/$NF
             touch /var/log/$NF/access.log
@@ -127,20 +120,24 @@ _create_service_file() {
   echo "" >> $FILE
   echo "[Service]" >> $FILE
   echo "Type=forking" >> $FILE
-  echo "PIDFile=/var/run/$NF-pid/$NF.pid" >> $FILE
-  echo "ExecStartPre=/sbin/runuser -l $NF -c \"$JAIL$NF/sbin/$NF -t\"" >> $FILE
-  echo "ExecStart=/sbin/runuser -u $NF $JAIL$NF/sbin/$NF" >> $FILE
-  echo "ExecReload=/bin/kill -s HUP \$MAINPID" >> $FILE
-  echo "ExecStop=/bin/kill -s QUIT \$MAINPID" >> $FILE
+  echo "User=$NF" >> $FILE
+  echo "PIDFile=/tmp/$NF.pid" >> $FILE
+  echo "ExecStartPre=/srv/ngxdef/sbin/ngxdef -t -q -g 'daemon on; master_process on;'" >> $FILE
+  echo "ExecStart=/srv/ngxdef/sbin/ngxdef -q -g 'daemon on; master_process on;'" >> $FILE
+  echo "ExecReload=/srv/ngxdef/sbin/ngxdef -g 'daemon on; master_process on;' -s reload" >> $FILE
+  echo "ExecStop=-/sbin/start-stop-daemon --quiet --stop --retry QUIT/5 --pidfile /tmp/ngxdef.pid" >> $FILE
   echo "PrivateTmp=true" >> $FILE
+  echo "Restart=on-abort" >> $FILE
+  echo "TimeoutStopSec=5" >> $FILE
+  echo "KillMode=mixed" >> $FILE
   echo "" >> $FILE
   echo "[Install]" >> $FILE
   echo "WantedBy=multi-user.target" >> $FILE
 
-  # ok senza unmask qui
+  # enable on boot
   systemctl enable $NF.service
 
-  # serve ?
+  # reload
   systemctl daemon-reload
 }
 
@@ -215,9 +212,12 @@ _set_permissions() {
         chmod 740 /var/log/$NF  # 640 ??
         chown -R $NF:root /var/log/$NF $JAIL$NF
         chown -R $NF:root /var/lib/$NF /var/cache/$NF /var/run/$NF-cache
-	chown $NF:root /var/run/$NF-pid /var/lock/$NF-lock
 
        	echo -e "	Update permissions			[${CGREEN}OK${CEND}]\\r"
+}
+
+_add_startup() {
+	systemctl enable $NF
 }
 
 
@@ -227,7 +227,7 @@ _set_permissions() {
 
 echo ""
 echo -e "${CGREEN}##################################${CEND}"
-echo " Installazione di $NF "
+echo " $NF (Nginx) setup "
 echo -e "${CGREEN}##################################${CEND}"
 echo ""
 
@@ -236,11 +236,12 @@ _check_privileges
 _init
 _install
 
-# Testo se essite $FILE
-if [ ! -f $FILE  ]; then  #nuovo setup
-# Nuovo setup
+# New setup or upgrade ?
+if [ ! -f $FILE  ]; then
+# New setup
 	_setup
 	_create_service_file
+	_add_startup
 
 	# download logrotate configuration
         wget -O /etc/logrotate.d/$NF https://raw.githubusercontent.com/giovannimanzoni/nginx-ee/master/etc/logrotate.d/nginx
@@ -265,17 +266,16 @@ if [ ! -f $FILE  ]; then  #nuovo setup
 		echo -ne "	Nginx start				[..]\r"
 		sleep 1
         	{
-			#systemctl start $NF.service
 			service $NF start
 		} >> $LOG_FILE 2>&1
         	echo -e "	Nginx start				[${CGREEN}OK${CEND}]\\r"
 	else
         	echo -e "	Checking Nginx configuration		[${CRED}FAIL${CEND}]"
-        	echo -e "	Controlla $LOG_FILE"
+        	echo -e "	Check $LOG_FILE"
         	exit 1
     	fi
 
-else #upgrade esistente
+else # upgrade
 
 	# check if nginx -t do not return errors
 	echo -ne "	Checking Nginx configuration		[..]\r"
@@ -283,8 +283,8 @@ else #upgrade esistente
     	VERIFY_NGINX_CONFIG=$($NF -t 2>&1 | grep failed)
 	if [ -z "$VERIFY_NGINX_CONFIG" ]; then
         	echo -e "	Checking nginx configuration		[${CGREEN}OK${CEND}]\\r"
-		# RESTART ESISTENTE se running, altrimenti lo fa partire
-		if [ -f /var/run/$NF-pid/$NF.pid ]; then
+		# RESTART if it is running or start it
+		if [ -f /tmp/$NF.pid ]; then
 			_upgrade
 		else
 		  echo -ne "	Start Nginx				[..]\r"
@@ -296,13 +296,13 @@ else #upgrade esistente
 		  	echo -e "	Start Nginx				[${CGREEN}OK${CEND}]\\r"
 		  else
 		  	echo -e "	Start Nginx				[${CRED}FAIL${CEND}]"
-        		echo -e "	Controlla $LOG_FILE"
+        		echo -e "	Check $LOG_FILE"
 	        	exit 1
 		  fi
 		fi
     	else
 		echo -e "	Checking nginx configuration           [${CRED}FAIL${CEND}]"
-       		echo -e "	Controlla $LOG_FILE"
+       		echo -e "	Check $LOG_FILE"
 		exit 1
 	fi
 fi

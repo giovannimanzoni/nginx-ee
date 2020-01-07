@@ -404,12 +404,16 @@ _create_service_file() {
   echo "" >> $FILE
   echo "[Service]" >> $FILE
   echo "Type=forking" >> $FILE
-  echo "PIDFile=/var/run/$NF-pid/$NF.pid" >> $FILE
-  echo "ExecStartPre=$JAIL/$NF/sbin/$NF -t" >> $FILE
-  echo "ExecStart=$JAIL/$NF/sbin/$NF" >> $FILE
-  echo "ExecReload=/bin/kill -s HUP \$MAINPID" >> $FILE
-  echo "ExecStop=/bin/kill -s QUIT \$MAINPID" >> $FILE
+  echo "User=$NF" >> $FILE
+  echo "PIDFile=/tmp/$NF.pid" >> $FILE
+  echo "ExecStartPre=/srv/ngxdef/sbin/ngxdef -t -q -g 'daemon on; master_process on;'" >> $FILE
+  echo "ExecStart=/srv/ngxdef/sbin/ngxdef -q -g 'daemon on; master_process on;'" >> $FILE
+  echo "ExecReload=/srv/ngxdef/sbin/ngxdef -g 'daemon on; master_process on;' -s reload" >> $FILE
+  echo "ExecStop=-/sbin/start-stop-daemon --quiet --stop --retry QUIT/5 --pidfile /tmp/ngxdef.pid" >> $FILE
   echo "PrivateTmp=true" >> $FILE
+  echo "Restart=on-abort" >> $FILE
+  echo "TimeoutStopSec=5" >> $FILE
+  echo "KillMode=mixed" >> $FILE
   echo "" >> $FILE
   echo "[Install]" >> $FILE
   echo "WantedBy=multi-user.target" >> $FILE
@@ -484,10 +488,6 @@ _nginx_prepare() {
         if [ ! -d /var/run/$NF-cache ]; then
 		mkdir -p /var/run/$NF-cache
 		chown $NF:root /var/run/$NF-cache
-        fi
-        if [ ! -d /var/lock/$NF-lock ]; then
-		mkdir -p /var/lock/$NF-lock
-		chown $NF:root /var/lock/$NF-lock
         fi
         if [ ! -d /var/run/$NF-pid ]; then
 		mkdir -p /var/run/$NF-pid
@@ -997,8 +997,8 @@ _configure_nginx() {
 	--conf-path=$JAIL/$NF/conf/nginx.conf \
 	--http-log-path=/var/log/$NF/access.log \
 	--error-log-path=/var/log/$NF/error.log \
-	--lock-path=/var/lock/$NF-lock/$NF.lock \
-	--pid-path=/var/run/$NF-pid/$NF.pid \
+	--lock-path=/tmp/$NF.lock \
+	--pid-path=/tmp/$NF.pid \
 	--http-client-body-temp-path=/var/lib/$NF/body \
 	--http-fastcgi-temp-path=/var/lib/$NF/fastcgi \
 	--http-proxy-temp-path=/var/lib/$NF/proxy \
