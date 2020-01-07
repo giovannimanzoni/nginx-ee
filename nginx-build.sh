@@ -1052,7 +1052,7 @@ _configure_nginx() {
                     --with-cc-opt='$DEB_CFLAGS' \
                     --with-ld-opt='$DEB_LFLAGS' \
                     $NGINX_BUILD_OPTIONS \
-                    --build='VirtuBox Nginx-ee' \
+                    --build='Nginx custom' \
                     $NGX_USER \
                     --with-file-aio \
                     --with-threads \
