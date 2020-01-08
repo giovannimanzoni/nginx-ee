@@ -405,11 +405,10 @@ _create_service_file() {
   echo "[Service]" >> $FILE
   echo "Type=forking" >> $FILE
   echo "User=$NF" >> $FILE
-  echo "PIDFile=/tmp/$NF.pid" >> $FILE
-  echo "ExecStartPre=/srv/ngxdef/sbin/ngxdef -t -q -g 'daemon on; master_process on;'" >> $FILE
-  echo "ExecStart=/srv/ngxdef/sbin/ngxdef -q -g 'daemon on; master_process on;'" >> $FILE
-  echo "ExecReload=/srv/ngxdef/sbin/ngxdef -g 'daemon on; master_process on;' -s reload" >> $FILE
-  echo "ExecStop=-/sbin/start-stop-daemon --quiet --stop --retry QUIT/5 --pidfile /tmp/ngxdef.pid" >> $FILE
+  echo "ExecStartPre=/srv/$NF/sbin/$NF -t -q -g 'daemon on; master_process on;'" >> $FILE
+  echo "ExecStart=/srv/$NF/sbin/$NF -q -g 'daemon on; master_process on;'" >> $FILE
+  echo "ExecReload=/srv/$NF/sbin/$NF -g 'daemon on; master_process on;' -s reload" >> $FILE
+  echo "ExecStop=-/sbin/start-stop-daemon --quiet --stop --retry QUIT/5 --pidfile /tmp/$NF.pid" >> $FILE
   echo "PrivateTmp=true" >> $FILE
   echo "Restart=on-abort" >> $FILE
   echo "TimeoutStopSec=5" >> $FILE
