@@ -160,15 +160,15 @@ DIR_DOWNLOAD="/usr/local/download"
 NGINX_EE_VER=$(curl -m 5 --retry 3 -sL https://api.github.com/repos/VirtuBox/nginx-ee/releases/latest 2>&1 | jq -r '.tag_name')
 NGINX_MAINLINE="$(curl -sL https://nginx.org/en/download.html 2>&1 | grep -E -o 'nginx\-[0-9.]+\.tar[.a-z]*' | awk -F "nginx-" '/.tar.gz$/ {print $2}' | sed -e 's|.tar.gz||g' | head -n 1 2>&1)"
 NGINX_STABLE="$(curl -sL https://nginx.org/en/download.html 2>&1 | grep -E -o 'nginx\-[0-9.]+\.tar[.a-z]*' | awk -F "nginx-" '/.tar.gz$/ {print $2}' | sed -e 's|.tar.gz||g' | head -n 2 | grep 1.16 2>&1)"
-LIBRESSL_VER="3.0.2"
+LIBRESSL_VER="3.2.2"
 STATICLIBSSL="$DIR_SRC/libressl"
-OPENSSL_VER="1.1.1d"
+OPENSSL_VER="1.1.1h"
 readonly OS_ARCH="$(uname -m)"
 OS_DISTRO_FULL="$(lsb_release -ds)"
 readonly DISTRO_ID="$(lsb_release -si)"
 readonly DISTRO_CODENAME="$(lsb_release -sc)"
 readonly DISTRO_NUMBER="$(lsb_release -sr)"
-OPENSSL_COMMIT="6f02932edba62186a6866e8c9f0f0714674f6bab"
+OPENSSL_COMMIT="ae290d8f0cc9fcfec2777bd18c39a4059001c7cc"
 # jail in separate hdd partition
 JAIL="/srv/"
 # nginx folder default for all domains, POI IMPOSTARLO COME PARAMETRO
@@ -745,7 +745,8 @@ _download_openssl_dev() {
                     echo "### removing openssl extracted archive ###"
                     rm -rf $DIR_SRC/openssl
                     echo "### cloning openssl ###"
-                    git clone --depth=1 https://github.com/openssl/openssl.git $DIR_SRC/openssl
+                    # git clone --depth=1 https://github.com/openssl/openssl.git $DIR_SRC/openssl
+                    git clone https://github.com/openssl/openssl.git $DIR_SRC/openssl
                     cd $DIR_SRC/openssl || exit 1
                     echo "### git checkout commit ###"
                     git checkout $OPENSSL_COMMIT
@@ -759,7 +760,8 @@ _download_openssl_dev() {
                 fi
             else
                 echo "### cloning openssl ###"
-                git clone --depth=1 https://github.com/openssl/openssl.git $DIR_SRC/openssl
+                #git clone --depth=1 https://github.com/openssl/openssl.git $DIR_SRC/openssl
+                git clone https://github.com/openssl/openssl.git $DIR_SRC/openssl
                 cd $DIR_SRC/openssl || exit 1
                 echo "### git checkout commit ###"
                 git checkout $OPENSSL_COMMIT
